@@ -1,7 +1,16 @@
-const { Client, GatewayIntentBits } = require("discord.js");
-const redis = require("redis");
-const express = require("express");
+import { createClient } from "redis";
+import { Client, GatewayIntentBits } from "discord.js";
+import express from "express";
 
+// Redis Client Setup
+const redisClient = createClient({
+  url: "DEINE_REDIS_URL_HIER", // Ersetze dies mit deiner Redis URL (z.B. redis://:password@host:port)
+});
+
+redisClient.on("error", (err) => console.error("Redis Client Error", err));
+await redisClient.connect();
+
+// Discord Bot Setup
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -11,7 +20,7 @@ const client = new Client({
   ],
 });
 
-// Channel- und Rollen-IDs
+// Beispiel Channel und Role IDs
 const MASTER_VOICE_CHANNEL_ID_1 = "1386769721646383206";
 const TEXT_CHANNEL_ID_1 = "1115017259245649927";
 const ROLE_ID_1 = "1386776757352271912";
@@ -33,52 +42,66 @@ const NEWS_ROLE_ID = "1356584876127817788";
 const COOLDOWN_SECONDS = 60;
 const cooldowns = new Map();
 
-// Redis-Client Setup
-const redisClient = redis.createClient({
-  url: process.env.REDIS_URL,
-});
-redisClient.connect();
-
+// Initial Bot Login
 client.on("ready", () => {
   console.log(`✅ Bot ist online als ${client.user.tag}`);
 });
 
-client.on("voiceStateUpdate", async (oldState, newState) => {
+client.login(process.env.TOKEN);
+
+// Automatischer Bot-Wechsel in Redis alle 24 Stunden
+async function toggleActiveBot() {
+  const activeBot = await redisClient.get("active_bot");
+
+  if (activeBot === "BOT1") {
+    await redisClient.set("active_bot", "BOT2");
+    console.log("Wechsel zu BOT2");
+  } else {
+    await redisClient.set("active_bot", "BOT1");
+    console.log("Wechsel zu BOT1");
+  }
+}
+
+// Alle 24 Stunden den Bot wechseln
+setInterval(toggleActiveBot, 24 * 60 * 60 * 1000);
+
+// Voice-Join Ping-Logik für beide Bots
+client.on("voiceStateUpdate", (oldState, newState) => {
   if (!oldState.channel && newState.channel) {
     const userId = newState.member.id;
     const now = Date.now();
 
-    // Redis-Key für cooldown pro User
-    const redisKey = `cooldown_${userId}`;
+    // Hole den aktiven Bot aus Redis
+    redisClient.get("active_bot").then((activeBot) => {
+      if (activeBot === "BOT1" && newState.channel.id === MASTER_VOICE_CHANNEL_ID_1) {
+        if (cooldowns.has(userId)) {
+          const expireTime = cooldowns.get(userId) + COOLDOWN_SECONDS * 1000;
+          if (now < expireTime) return;
+        }
+        const textChannel = newState.guild.channels.cache.get(TEXT_CHANNEL_ID_1);
+        textChannel.send(
+          `<@&${ROLE_ID_1}> 🎮 ${newState.member.user.tag} sucht Mitspieler!`
+        );
+        cooldowns.set(userId, now);
+      }
 
-    const lastPing = await redisClient.get(redisKey);
-    if (lastPing && now - parseInt(lastPing) < COOLDOWN_SECONDS * 1000) {
-      return; // Cooldown aktiv, nichts tun
-    }
-
-    let textChannel;
-    let roleId;
-
-    if (newState.channel.id === MASTER_VOICE_CHANNEL_ID_1) {
-      textChannel = newState.guild.channels.cache.get(TEXT_CHANNEL_ID_1);
-      roleId = ROLE_ID_1;
-    } else if (newState.channel.id === MASTER_VOICE_CHANNEL_ID_2) {
-      textChannel = newState.guild.channels.cache.get(TEXT_CHANNEL_ID_2);
-      roleId = ROLE_ID_2;
-    } else if (newState.channel.id === MASTER_VOICE_CHANNEL_ID_3) {
-      textChannel = newState.guild.channels.cache.get(TEXT_CHANNEL_ID_3);
-      roleId = ROLE_ID_3;
-    } else {
-      return;
-    }
-
-    if (textChannel) {
-      textChannel.send(`<@&${roleId}> 🎮 ${newState.member.user.tag} sucht Mitspieler!`);
-      await redisClient.set(redisKey, now.toString());
-    }
+      // Für BOT2 (weitere Logik entsprechend)
+      else if (activeBot === "BOT2" && newState.channel.id === MASTER_VOICE_CHANNEL_ID_2) {
+        if (cooldowns.has(userId)) {
+          const expireTime = cooldowns.get(userId) + COOLDOWN_SECONDS * 1000;
+          if (now < expireTime) return;
+        }
+        const textChannel = newState.guild.channels.cache.get(TEXT_CHANNEL_ID_2);
+        textChannel.send(
+          `<@&${ROLE_ID_2}> 🎮 ${newState.member.user.tag} sucht Mitspieler!`
+        );
+        cooldowns.set(userId, now);
+      }
+    });
   }
 });
 
+// Nachrichten-Befehlslogik (CODES und NEWS Channels)
 client.on("messageCreate", (message) => {
   if (message.author.bot) return;
 
@@ -91,9 +114,16 @@ client.on("messageCreate", (message) => {
   }
 });
 
-client.login(process.env.TOKEN);
+// Starte HTTP-Server
+express().get("/", (req, res) => res.send("Ich bin online!")).listen(process.env.PORT || 3000);
 
-// Express HTTP Server für Railway
-express().get("/", (req, res) => res.send("Ich bin online!")).listen(process.env.PORT || 3000, () => {
+// HTTP-Server Setup
+const http = require("http");
+const server = http.createServer((req, res) => {
+  res.writeHead(200);
+  res.end("Bot & HTTP-Server laufen!");
+});
+
+server.listen(process.env.PORT || 3000, () => {
   console.log(`HTTP-Server läuft auf Port ${process.env.PORT || 3000}`);
 });
