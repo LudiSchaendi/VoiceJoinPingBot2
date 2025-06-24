@@ -87,4 +87,7 @@ client.on("messageCreate", (message) => {
 
 client.login(process.env.TOKEN);
 process.stdin.resume();
+const http = require("http");
+http.createServer((req, res) => res.end("Bot läuft")).listen(process.env.PORT || 3000);
+
 
