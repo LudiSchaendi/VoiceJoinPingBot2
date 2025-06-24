@@ -1,4 +1,5 @@
 const { Client, GatewayIntentBits } = require("discord.js");
+const http = require("http");
 
 const client = new Client({
   intents: [
@@ -31,7 +32,7 @@ const COOLDOWN_SECONDS = 60;
 const cooldowns = new Map();
 
 client.on("ready", () => {
-  console.log(`Bot ist online als ${client.user.tag}`);
+  console.log(`✅ Bot ist online als ${client.user.tag}`);
 });
 
 client.on("voiceStateUpdate", (oldState, newState) => {
@@ -46,7 +47,7 @@ client.on("voiceStateUpdate", (oldState, newState) => {
       }
       const textChannel = newState.guild.channels.cache.get(TEXT_CHANNEL_ID_1);
       textChannel.send(
-        `<@&${ROLE_ID_1}> 🎮 ${newState.member.user.tag} sucht Mitspieler!`,
+        `<@&${ROLE_ID_1}> 🎮 ${newState.member.user.tag} sucht Mitspieler!`
       );
       cooldowns.set(userId, now);
     } else if (newState.channel.id === MASTER_VOICE_CHANNEL_ID_2) {
@@ -56,7 +57,7 @@ client.on("voiceStateUpdate", (oldState, newState) => {
       }
       const textChannel = newState.guild.channels.cache.get(TEXT_CHANNEL_ID_2);
       textChannel.send(
-        `<@&${ROLE_ID_2}> 🎮 ${newState.member.user.tag} sucht Mitspieler!`,
+        `<@&${ROLE_ID_2}> 🎮 ${newState.member.user.tag} sucht Mitspieler!`
       );
       cooldowns.set(userId, now);
     } else if (newState.channel.id === MASTER_VOICE_CHANNEL_ID_3) {
@@ -66,7 +67,7 @@ client.on("voiceStateUpdate", (oldState, newState) => {
       }
       const textChannel = newState.guild.channels.cache.get(TEXT_CHANNEL_ID_3);
       textChannel.send(
-        `<@&${ROLE_ID_3}> 🎮 ${newState.member.user.tag} sucht Mitspieler!`,
+        `<@&${ROLE_ID_3}> 🎮 ${newState.member.user.tag} sucht Mitspieler!`
       );
       cooldowns.set(userId, now);
     }
@@ -86,8 +87,12 @@ client.on("messageCreate", (message) => {
 });
 
 client.login(process.env.TOKEN);
-process.stdin.resume();
-const http = require("http");
-http.createServer((req, res) => res.end("Bot läuft")).listen(process.env.PORT || 3000);
 
+const server = http.createServer((req, res) => {
+  res.writeHead(200);
+  res.end("✅ Bot läuft & HTTP-Server aktiv!");
+});
 
+server.listen(process.env.PORT || 3000, () => {
+  console.log(`🌐 HTTP-Server läuft auf Port ${process.env.PORT || 3000}`);
+});
