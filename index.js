@@ -16,4 +16,9 @@ client.on("ready", () => {
 
 client.login(process.env.TOKEN);
 
-express().get("/", (req, res) => res.send("Ich bin online!")).listen(process.env.PORT || 3000);
+// ✅ Nur ein Server: Express
+express()
+  .get("/", (req, res) => res.send("Bot & HTTP-Server laufen!"))
+  .listen(process.env.PORT || 3000, () => {
+    console.log(`🚀 HTTP-Server läuft auf Port ${process.env.PORT || 3000}`);
+  });
