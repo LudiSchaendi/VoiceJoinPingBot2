@@ -4,7 +4,7 @@ import express from "express";
 
 // Redis Client Setup
 const redisClient = createClient({
-  url: "DEINE_REDIS_URL_HIER", // Ersetze dies mit deiner Redis URL (z.B. redis://:password@host:port)
+  url: "redis-16689.c62.us-east-1-4.ec2.redns.redis-cloud.com:16689", // Ersetze dies mit deiner Redis URL (z.B. redis://:password@host:port)
 });
 
 redisClient.on("error", (err) => console.error("Redis Client Error", err));
